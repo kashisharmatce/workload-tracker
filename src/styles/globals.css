@@ -1,0 +1,366 @@
+/* ===================== GLOBAL STYLES ===================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, sans-serif;
+}
+
+body {
+  background-color: #f5f6fa;
+  color: #333;
+  line-height: 1.5;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+a:hover {
+  color: #6f42c1;
+}
+
+button {
+  padding: 0.4rem 0.8rem;
+  background-color: #6f42c1;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  background-color: #5a359e;
+}
+
+input, select {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* ===================== LAYOUT ===================== */
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.content {
+  flex: 1;
+  background: #f5f6fa;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+/* ===================== SIDEBAR ===================== */
+.sidebar {
+  width: 220px;
+  background-color: #18283b;
+  color: #f5f6fa;
+  min-height: 100vh;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+}
+
+.collapsed {
+  width: 70px;
+}
+
+.logo {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.toggleBtn {
+  background: none;
+  border: none;
+  color: #f5f6fa;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 8px;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.navItem:hover,
+.navItem.active {
+  background: linear-gradient(90deg, #6f42c1, #b19cd9);
+  transform: translateX(3px);
+  color : white
+}
+
+.logout {
+  list-style: none;
+  padding: 0;
+  margin-top: auto;
+}
+
+.logout li {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.logout li:hover {
+  background-color: #e74c3c;
+  transform: translateX(3px);
+}
+
+.logout .icon {
+  color: #e74c3c;
+}
+
+.collapsed .logout li span {
+  display: none;
+}
+
+/* ===================== HEADER ===================== */
+header {
+  padding: 1rem;
+  background-color: #6f42c1;
+  color: white;
+  margin-bottom: 2rem;
+  border-radius: 8px;
+}
+
+/* ===================== CARDS & CONTAINERS ===================== */
+.container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+.card {
+  background: #ffffff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* ===================== PROGRESS BAR ===================== */
+.progressBar {
+  background: #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  height: 12px;
+  margin: 0.5rem 0 1rem;
+}
+
+.progressFill {
+  background: #4caf50;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+/* ===================== DATA ENTRY PAGE ===================== */
+.data-entry-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1rem 0;
+}
+
+/* Form Cards */
+.data-entry-form-card,
+.facilitator-form-card {
+  background: #ffffff;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+.data-entry-form-card h2,
+.facilitator-form-card h2 {
+  margin-bottom: 1rem;
+  color: #18283b;
+  font-size: 1.5rem;
+}
+
+/* Forms */
+.data-entry-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.data-entry-form input,
+.data-entry-form select {
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 0.95rem;
+  min-width: 180px;
+  background-color: #fff;
+  color: #333;
+  transition: border 0.2s, box-shadow 0.2s;
+}
+
+.data-entry-form input:hover,
+.data-entry-form select:hover {
+  border-color: #6f42c1;
+}
+
+.data-entry-form input:focus,
+.data-entry-form select:focus {
+  outline: none;
+  border-color: #6f42c1;
+  box-shadow: 0 0 5px rgba(111, 66, 193, 0.25);
+}
+
+.data-entry-form button {
+  padding: 0.6rem 1rem;
+  background-color: #6f42c1;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.data-entry-form button:hover {
+  background-color: #5a359e;
+}
+
+/* ===================== DROPDOWN STYLING ===================== */
+.data-entry-form select {
+  appearance: none;
+  cursor: pointer;
+}
+
+.select-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.select-wrapper::after {
+  content: "▼";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.7rem;
+  color: #6f42c1;
+  pointer-events: none;
+}
+
+/* ===================== ENTRIES TABLE STYLING ===================== */
+/* Table container */
+.data-entry-table-card {
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow-x: auto;
+}
+
+/* Table */
+.data-entry-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.data-entry-table th,
+.data-entry-table td {
+  padding: 0.75rem 1rem;  /* Add space between cells */
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+  vertical-align: middle;
+}
+
+.data-entry-table th {
+  background-color: #f0f0f0;
+  font-weight: 600;
+}
+
+/* Space between Edit & Delete buttons */
+.data-entry-table td.action-buttons button {
+  margin-right: 0.5rem;
+}
+
+.data-entry-table td.action-buttons button:last-child {
+  margin-right: 0;
+}
+
+/* Button colors */
+.data-entry-table td.action-buttons button:first-child {
+  background-color: #6f42c1; /* Edit */
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+
+.data-entry-table td.action-buttons button:last-child {
+  background-color: #e74c3c; /* Delete */
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+
+/* Optional hover effect for buttons */
+.data-entry-table td.action-buttons button:hover {
+  opacity: 0.9;
+}
+
+
+/* ===================== RESPONSIVE ===================== */
+@media (max-width: 768px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+    flex-direction: row;
+    overflow-x: auto;
+  }
+
+  .content {
+    padding: 1rem;
+  }
+
+  .data-entry-form {
+    flex-direction: column;
+    gap: 0.8rem;
+  }
+
+  .data-entry-form input,
+  .data-entry-form select {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .data-entry-table {
+    font-size: 0.9rem;
+  }
+}
