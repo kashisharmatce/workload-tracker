@@ -1,0 +1,20 @@
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.dashboard-table th {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 2px solid #3b82f6;
+}
+
+.dashboard-table td {
+  padding: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dashboard-table tr:nth-child(even) {
+  background: #f9fafb;
+}

@@ -1,23 +1,23 @@
 "use client";
-import React, { useState, useEffect, useRef } from "react";
-import '../../styles/globals.css'
-
+import React, { useState, useEffect } from "react";
+import "../../styles/globals.css";
 
 export default function DataEntry() {
   const [facilitators, setFacilitators] = useState([]);
   const [entries, setEntries] = useState([]);
+  const [newFacilitator, setNewFacilitator] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+
   const [formData, setFormData] = useState({
     id: "",
     facilitator_id: "",
     week_start: "",
     contact_hours: "",
-    non_contact_category: "",
-    non_contact_hours: "",
+    non_contact_activities: [],
     comments: "",
   });
-  const [newFacilitator, setNewFacilitator] = useState(""); // New facilitator name
-  const [isEditing, setIsEditing] = useState(false);
-  const firstInputRef = useRef(null);
+
+  const [activity, setActivity] = useState({ category: "", hours: "" });
 
   const nonContactOptions = [
     "Regular Session",
@@ -41,7 +41,6 @@ export default function DataEntry() {
     "Upskill",
   ];
 
-  // Fetch facilitators and entries on page load
   useEffect(() => {
     fetchFacilitators();
     fetchEntries();
@@ -49,96 +48,94 @@ export default function DataEntry() {
 
   // ----- FACILITATORS -----
   const fetchFacilitators = async () => {
-    try {
-      const res = await fetch("/api/facilitators");
-      const data = await res.json();
-      setFacilitators(data);
-    } catch (err) {
-      console.error("Error fetching facilitators:", err);
-    }
+    const res = await fetch("/api/facilitators");
+    setFacilitators(await res.json());
   };
 
   const handleAddFacilitator = async (e) => {
     e.preventDefault();
     if (!newFacilitator) return;
 
-    try {
-      await fetch("/api/facilitators", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newFacilitator }),
-      });
-      setNewFacilitator("");
-      fetchFacilitators(); // Refresh the dropdown
-    } catch (err) {
-      console.error("Error adding facilitator:", err);
-    }
+    await fetch("/api/facilitators", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: newFacilitator }),
+    });
+
+    setNewFacilitator("");
+    fetchFacilitators();
   };
 
-  // ----- WEEKLY ENTRIES -----
+  // ----- ENTRIES -----
   const fetchEntries = async () => {
-    try {
-      const res = await fetch("/api/entries");
-      const data = await res.json();
-      setEntries(data);
-    } catch (err) {
-      console.error("Error fetching entries:", err);
-    }
+    const res = await fetch("/api/entries");
+    setEntries(await res.json());
   };
 
-  const handleEntryChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleAddActivity = () => {
+    if (!activity.category || !activity.hours) return;
+    setFormData({
+      ...formData,
+      non_contact_activities: [...formData.non_contact_activities, activity],
+    });
+    setActivity({ category: "", hours: "" });
   };
 
-  const handleSubmitEntry = async (e) => {
+  const handleRemoveActivity = (index) => {
+    const updatedActivities = [...formData.non_contact_activities];
+    updatedActivities.splice(index, 1);
+    setFormData({ ...formData, non_contact_activities: updatedActivities });
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const payload = { ...formData };
-    if (!isEditing) delete payload.id; // Only for new entries
-
-    try {
-      await fetch("/api/entries", {
-        method: isEditing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      setFormData({
-        id: "",
-        facilitator_id: "",
-        week_start: "",
-        contact_hours: "",
-        non_contact_category: "",
-        non_contact_hours: "",
-        comments: "",
-      });
-      setIsEditing(false);
-      fetchEntries(); // Refresh table
-    } catch (err) {
-      console.error("Error saving entry:", err);
+    if (!formData.facilitator_id || !formData.week_start || !formData.contact_hours) {
+      alert("Please fill all required fields");
+      return;
     }
+
+    const payload = { ...formData };
+    if (!isEditing) delete payload.id;
+
+    await fetch("/api/entries", {
+      method: isEditing ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    setFormData({
+      id: "",
+      facilitator_id: "",
+      week_start: "",
+      contact_hours: "",
+      non_contact_activities: [],
+      comments: "",
+    });
+    setIsEditing(false);
+    fetchEntries();
   };
 
-  const handleEditEntry = (entry) => {
-    setFormData({ ...entry, id: entry._id });
+  const handleEdit = (entry) => {
+    setFormData({
+      ...entry,
+      id: entry._id,
+      non_contact_activities: entry.non_contact_activities || [],
+    });
     setIsEditing(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleDeleteEntry = async (id) => {
-    if (!confirm("Are you sure you want to delete this entry?")) return;
-    try {
-      await fetch(`/api/entries?id=${id}`, { method: "DELETE" });
-      fetchEntries();
-    } catch (err) {
-      console.error("Error deleting entry:", err);
-    }
+  const handleDelete = async (id) => {
+    if (!confirm("Delete entry?")) return;
+    await fetch(`/api/entries?id=${id}`, { method: "DELETE" });
+    fetchEntries();
   };
 
   return (
     <div className="data-entry-container">
 
-      {/* ----- ADD FACILITATOR ----- */}
+      {/* ADD FACILITATOR */}
       <div className="facilitator-form-card">
         <h2>Add Facilitator</h2>
         <form className="data-entry-form" onSubmit={handleAddFacilitator}>
@@ -153,15 +150,15 @@ export default function DataEntry() {
         </form>
       </div>
 
-      {/* ----- ADD / EDIT ENTRY ----- */}
+      {/* ADD / EDIT ENTRY */}
       <div className="data-entry-form-card">
         <h2>{isEditing ? "Edit Entry" : "Add Weekly Entry"}</h2>
-       <form className="data-entry-form" onSubmit={handleSubmitEntry}>
+        <form onSubmit={handleSubmit} className="data-entry-form">
           <select
-            name="facilitator_id"
             value={formData.facilitator_id}
-            onChange={handleEntryChange}
-            ref={firstInputRef}
+            onChange={(e) =>
+              setFormData({ ...formData, facilitator_id: e.target.value })
+            }
             required
           >
             <option value="">Select Facilitator</option>
@@ -172,77 +169,112 @@ export default function DataEntry() {
 
           <input
             type="date"
-            name="week_start"
             value={formData.week_start}
-            onChange={handleEntryChange}
+            onChange={(e) =>
+              setFormData({ ...formData, week_start: e.target.value })
+            }
             required
           />
+
           <input
             type="number"
-            name="contact_hours"
-            value={formData.contact_hours}
-            onChange={handleEntryChange}
             placeholder="Contact Hours"
+            value={formData.contact_hours}
+            onChange={(e) =>
+              setFormData({ ...formData, contact_hours: e.target.value })
+            }
             required
           />
-          <select
-            name="non_contact_category"
-            value={formData.non_contact_category}
-            onChange={handleEntryChange}
-            required
-          >
-            <option value="">Non-Contact Category</option>
-            {nonContactOptions.map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
+
+          {/* NON-CONTACT ACTIVITIES */}
+          <div className="non-contact-inputs">
+            <select
+              value={activity.category}
+              onChange={(e) =>
+                setActivity({ ...activity, category: e.target.value })
+              }
+            >
+              <option value="">Non-Contact Category</option>
+              {nonContactOptions.map((o) => (
+                <option key={o}>{o}</option>
+              ))}
+            </select>
+            <input
+              type="number"
+              placeholder="Hours"
+              value={activity.hours}
+              onChange={(e) =>
+                setActivity({ ...activity, hours: e.target.value })
+              }
+            />
+            <button type="button" onClick={handleAddActivity}>
+              Add Category
+            </button>
+          </div>
+
+          <ul className="activity-list">
+            {formData.non_contact_activities.map((a, i) => (
+              <li key={i}>
+                {a.category} – {a.hours} hrs
+                <button type="button" onClick={() => handleRemoveActivity(i)}>❌</button>
+              </li>
             ))}
-          </select>
+          </ul>
+
           <input
-            type="number"
-            name="non_contact_hours"
-            value={formData.non_contact_hours}
-            onChange={handleEntryChange}
-            placeholder="Non-Contact Hours"
-            required
-          />
-          <input
-            type="text"
-            name="comments"
-            value={formData.comments}
-            onChange={handleEntryChange}
             placeholder="Comments"
+            value={formData.comments}
+            onChange={(e) =>
+              setFormData({ ...formData, comments: e.target.value })
+            }
           />
-          <button type="submit">{isEditing ? "Update" : "Add"}</button>
+
+          <button type="submit">{isEditing ? "Update" : "Save"}</button>
         </form>
       </div>
 
-      {/* ----- ENTRIES TABLE ----- */}
+      {/* TABLE */}
       <div className="data-entry-table-card">
         <table className="data-entry-table">
           <thead>
             <tr>
               <th>Facilitator</th>
-              <th>Week Start</th>
-              <th>Contact Hours</th>
-              <th>Non-Contact</th>
-              <th>Non-Contact Hours</th>
+              <th>Week</th>
+              <th>Contact</th>
+              <th>Non-Contact Activities</th>
               <th>Comments</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {entries.map((e) => {
-              const facilitator = facilitators.find((f) => f._id === e.facilitator_id);
+            {entries.map((entry) => {
+              const facilitatorName = facilitators.find(f => f._id === entry.facilitator_id)?.name || "Unknown";
+
               return (
-                <tr key={e._id}>
-                  <td>{facilitator ? facilitator.name : "Unknown"}</td>
-                  <td>{new Date(e.week_start).toISOString().split("T")[0]}</td>
-                  <td>{e.contact_hours}</td>
-                  <td>{e.non_contact_category}</td>
-                  <td>{e.non_contact_hours}</td>
-                  <td>{e.comments}</td>
-                  <td className="action-buttons">
-                    <button onClick={() => handleEditEntry(e)}>Edit</button>
-                    <button onClick={() => handleDeleteEntry(e._id)}>Delete</button>
+                <tr key={entry._id}>
+                  <td>{facilitatorName}</td>
+                  <td>{new Date(entry.week_start).toISOString().split("T")[0]}</td>
+                  <td>{entry.contact_hours}</td>
+                  <td>
+                    {entry.non_contact_activities?.length > 0 ? (
+                      <details>
+                        <summary>View ({entry.non_contact_activities.length})</summary>
+                        <ul className="activity-list">
+                          {entry.non_contact_activities.map((a, i) => (
+                            <li key={i}>
+                              {a.category} – {a.hours} hrs
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    ) : (
+                      <span>No activities</span>
+                    )}
+                  </td>
+                  <td>{entry.comments}</td>
+                  <td>
+                    <button onClick={() => handleEdit(entry)}>Edit</button>
+                    <button onClick={() => handleDelete(entry._id)}>Delete</button>
                   </td>
                 </tr>
               );
@@ -250,7 +282,6 @@ export default function DataEntry() {
           </tbody>
         </table>
       </div>
-
     </div>
   );
 }

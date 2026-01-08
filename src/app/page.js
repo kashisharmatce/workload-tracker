@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import '../styles/dashboard.css'
 import {
   BarChart,
   Bar,
@@ -10,197 +12,229 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-/* -------------------- DUMMY DATA -------------------- */
-
-const weeklyContactData = [
-  { name: "Kashi Sharma", assigned: 10, utilized: 10 },
-  { name: "K B Chandrasekaran", assigned: 8, utilized: 7 },
-  { name: "Rushikesh Rajuwar", assigned: 4, utilized: 4 },
-  { name: "Srinivas Naik", assigned: 2, utilized: 2 },
-  { name: "Vineeth Rai", assigned: 2, utilized: 2 },
-];
-
-const nonSessionData = [
-  { name: "Kashi Sharma", nonContact: 37, pending: 1 },
-  { name: "Rushikesh Rajuwar", nonContact: 19, pending: 25 },
-  { name: "Srinivas Naik", nonContact: 24, pending: 18 },
-  { name: "Vineeth Rai", nonContact: 15, pending: 13 },
-];
-
-const nonSessionBreakdown = [
-  {
-    name: "Kashi Sharma",
-    Curriculum: 24,
-    LMS: 4,
-    Quiz: 3,
-    Documentation: 3,
-    Milestone: 1,
-  },
-  {
-    name: "Rushikesh Rajuwar",
-    Assignment: 9,
-    ClassPrep: 6,
-    Recording: 4,
-  },
-];
-
-const projectTable = [
-  { facilitator: "Akshay Kumar U", project: "Gig", hours: 16 },
-  { facilitator: "K B Chandrasekaran", project: "PCB Board Design", hours: 8 },
-  { facilitator: "Vineeth Rai", project: "PCB Board Design", hours: 18 },
-];
-
-const eventTable = [
-  { facilitator: "Akhiljith Gigi", event: "ROSCON", days: 40 },
-  { facilitator: "Pulkit Garg", event: "ROSCON", days: 40 },
-];
-
-/* -------------------- PAGE -------------------- */
-
 export default function DashboardPage() {
+  const [facilitators, setFacilitators] = useState([]);
+  const [entries, setEntries] = useState([]);
+  const [month, setMonth] = useState("2026-01");
+  const [selectedFacilitator, setSelectedFacilitator] = useState("ALL");
+
+  /* ---------------- FETCH DATA ---------------- */
+  useEffect(() => {
+    fetch("/api/facilitators").then(r => r.json()).then(setFacilitators);
+    fetch("/api/entries").then(r => r.json()).then(setEntries);
+  }, []);
+
+  /* ---------------- FILTER ---------------- */
+  const filteredEntries = entries.filter(e => {
+    const sameMonth = e.week_start.startsWith(month);
+    const sameFac =
+      selectedFacilitator === "ALL" || e.facilitator_id === selectedFacilitator;
+    return sameMonth && sameFac;
+  });
+
+  /* ---------------- SESSION HOURS ---------------- */
+  const sessionChartData = facilitators.map(f => {
+    const fEntries = filteredEntries.filter(e => e.facilitator_id === f._id);
+
+    const assigned = fEntries
+      .filter(e => e.non_contact_category === "Assigned Contact Hours")
+      .reduce((s, e) => s + Number(e.contact_hours || 0), 0);
+
+    const regular = fEntries.reduce(
+      (s, e) => s + Number(e.contact_hours || 0),
+      0
+    );
+
+    return { name: f.name, assigned, regular };
+  });
+
+  /* ---------------- NON SESSION ---------------- */
+  const nonSessionData = facilitators.map(f => {
+    const fEntries = filteredEntries.filter(e => e.facilitator_id === f._id);
+
+    const nonContact = fEntries.reduce(
+      (s, e) => s + Number(e.non_contact_hours || 0),
+      0
+    );
+
+    const assignedNC = fEntries
+      .filter(e => e.non_contact_category === "Assigned Non Contact Hours")
+      .reduce((s, e) => s + Number(e.non_contact_hours || 0), 0);
+
+    return {
+      name: f.name,
+      nonContact,
+      pending: Math.max(assignedNC - nonContact, 0),
+    };
+  });
+
+  /* ---------------- TASK BREAKDOWN ---------------- */
+  const taskBreakdown = facilitators.map(f => {
+    const obj = { name: f.name };
+    filteredEntries
+      .filter(e => e.facilitator_id === f._id)
+      .forEach(e => {
+        obj[e.non_contact_category] =
+          (obj[e.non_contact_category] || 0) + Number(e.non_contact_hours || 0);
+      });
+    return obj;
+  });
+
+  /* ---------------- TABLE DATA ---------------- */
+  const projects = filteredEntries.filter(
+    e => e.non_contact_category === "Project"
+  );
+  const events = filteredEntries.filter(
+    e => e.non_contact_category === "Event"
+  );
+
   return (
     <div style={styles.page}>
-      <h1 style={styles.title}>Facilitator Workload Tracker</h1>
-      <p style={styles.subtitle}>Weekly Dashboard • 1st January 2026</p>
+      <h2>Facilitator Workload Tracker</h2>
+      <p>Monthly Dashboard</p>
 
-      {/* WEEKLY CONTACT HOURS */}
-      <div style={styles.card}>
-        <h3>Weekly Session Hours</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={weeklyContactData}>
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="assigned" fill="#aaa6fcff" name="Assigned Contact Hours" />
-            <Bar dataKey="utilized" fill="#f88ac1ff" name="Utilized Contact Hours" />
-          </BarChart>
-        </ResponsiveContainer>
+      {/* FILTERS */}
+      <div style={styles.filters}>
+        <input
+          type="month"
+          value={month}
+          onChange={e => setMonth(e.target.value)}
+        />
+        <select onChange={e => setSelectedFacilitator(e.target.value)}>
+          <option value="ALL">Admin – All Facilitators</option>
+          {facilitators.map(f => (
+            <option key={f._id} value={f._id}>{f.name}</option>
+          ))}
+        </select>
       </div>
 
-      <div style={styles.grid}>
-        {/* NON SESSION HOURS */}
+      {/* TOP GRID */}
+      <div style={styles.gridTop}>
         <div style={styles.card}>
-          <h3>Weekly Non-Session Hours</h3>
-          <ResponsiveContainer width="100%" height={280}>
+          <h4>Weekly Session Hours View</h4>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={sessionChartData}>
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="assigned" fill="#312e81" />
+              <Bar dataKey="regular" fill="#ec4899" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div style={styles.card}>
+          <h4>Projects</h4>
+          <ProjectsTable rows={projects} facilitators={facilitators} />
+
+          <h4 style={{ marginTop: 20 }}>Events</h4>
+          <EventsTable rows={events} facilitators={facilitators} />
+        </div>
+      </div>
+
+      {/* BOTTOM GRID */}
+      <div style={styles.gridBottom}>
+        <div style={styles.card}>
+          <h4>Weekly Non Session Hours View</h4>
+          <ResponsiveContainer width="100%" height={260}>
             <BarChart data={nonSessionData} layout="vertical">
               <XAxis type="number" />
               <YAxis type="category" dataKey="name" />
               <Tooltip />
               <Legend />
-              <Bar dataKey="nonContact" stackId="a" fill="#f1657dff" name="Non-Contact Hours" />
-              <Bar dataKey="pending" stackId="a" fill="#c8a9feff" name="Pending Hours" />
+              <Bar dataKey="nonContact" stackId="a" fill="#e11d48" />
+              <Bar dataKey="pending" stackId="a" fill="#5b21b6" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* NON SESSION BREAKDOWN */}
         <div style={styles.card}>
-          <h3>Non-Session Task Breakdown</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={nonSessionBreakdown}>
-              <XAxis dataKey="name" />
-              <YAxis />
+          <h4>Non Session Hours Task Time Overview</h4>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={taskBreakdown} layout="vertical">
+              <XAxis type="number" />
+              <YAxis type="category" dataKey="name" />
               <Tooltip />
               <Legend />
-              <Bar dataKey="Curriculum" stackId="a" fill="#f8aed3ff" />
-              <Bar dataKey="Assignment" stackId="a" fill="#7ba8efff" />
-              <Bar dataKey="ClassPrep" stackId="a" fill="#fcac73ff" />
-              <Bar dataKey="Recording" stackId="a" fill="#7c3aed" />
-              <Bar dataKey="LMS" stackId="a" fill="#6366f1" />
-              <Bar dataKey="Quiz" stackId="a" fill="#f9e199ff" />
-              <Bar dataKey="Documentation" stackId="a" fill="#ef4444" />
-              <Bar dataKey="Milestone" stackId="a" fill="#22c55e" />
+              <Bar dataKey="Assignment Evaluation" stackId="a" fill="#1d4ed8" />
+              <Bar dataKey="Class Prep" stackId="a" fill="#f97316" />
+              <Bar dataKey="Class Recording" stackId="a" fill="#7c3aed" />
+              <Bar dataKey="Curriculum Design" stackId="a" fill="#ec4899" />
+              <Bar dataKey="LMS Update" stackId="a" fill="#6366f1" />
+              <Bar dataKey="Milestone" stackId="a" fill="#eab308" />
+              <Bar dataKey="Quiz" stackId="a" fill="#ef4444" />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* TABLES */}
-      <div style={styles.grid}>
-        <div style={styles.card}>
-          <h3>Projects Overview</h3>
-          <Table
-            headers={["Facilitator", "Project", "Hours"]}
-            rows={projectTable.map((p) => [
-              p.facilitator,
-              p.project,
-              p.hours,
-            ])}
-          />
-        </div>
-
-        <div style={styles.card}>
-          <h3>Events Overview</h3>
-          <Table
-            headers={["Facilitator", "Event", "Days"]}
-            rows={eventTable.map((e) => [
-              e.facilitator,
-              e.event,
-              e.days,
-            ])}
-          />
         </div>
       </div>
     </div>
   );
 }
 
-/* -------------------- TABLE COMPONENT -------------------- */
-
-function Table({ headers, rows }) {
+/* ---------------- PROJECTS TABLE ---------------- */
+function ProjectsTable({ rows, facilitators }) {
   return (
-    <table style={styles.table}>
+    <table className="dashboard-table">
       <thead>
         <tr>
-          {headers.map((h) => (
-            <th key={h}>{h}</th>
-          ))}
+          <th>Facilitator</th>
+          <th>Hours</th>
+          <th>Description</th>
         </tr>
       </thead>
       <tbody>
-        {rows.map((row, i) => (
-          <tr key={i}>
-            {row.map((cell, j) => (
-              <td key={j}>{cell}</td>
-            ))}
-          </tr>
-        ))}
+        {rows.map(r => {
+          const f = facilitators.find(x => x._id === r.facilitator_id);
+          return (
+            <tr key={r._id}>
+              <td>{f?.name}</td>
+              <td>{r.non_contact_hours}</td>
+              <td>{r.comments || "-"}</td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
 }
 
-/* -------------------- STYLES -------------------- */
+/* ---------------- EVENTS TABLE ---------------- */
+function EventsTable({ rows, facilitators }) {
+  return (
+    <table className="dashboard-table">
+      <thead>
+        <tr>
+          <th>Facilitator</th>
+          <th>Days</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map(r => {
+          const f = facilitators.find(x => x._id === r.facilitator_id);
+          return (
+            <tr key={r._id}>
+              <td>{f?.name}</td>
+              <td>{r.non_contact_hours}</td>
+              <td>{r.comments || "-"}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
 
+/* ---------------- STYLES ---------------- */
 const styles = {
-  page: {
-    padding: "24px",
-    background: "#f8fafc",
-    minHeight: "100vh",
-  },
-  title: {
-    fontSize: "28px",
-    fontWeight: 700,
-  },
-  subtitle: {
-    color: "#64748b",
-    marginBottom: "24px",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "20px",
-    marginTop: "20px",
-  },
+  page: { padding: 20, background: "#f8fafc" },
+  filters: { display: "flex", gap: 12, marginBottom: 16 },
+  gridTop: { display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 },
+  gridBottom: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 },
   card: {
-    background: "#ffffff",
-    borderRadius: "12px",
-    padding: "16px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
+    background: "#fff",
+    border: "1px solid #ddd",
+    padding: 12,
   },
 };
