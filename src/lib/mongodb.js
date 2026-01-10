@@ -1,4 +1,3 @@
-// src/lib/mongodb.js
 import mongoose from "mongoose";
 
 let cached = global.mongoose;

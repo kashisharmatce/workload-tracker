@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import '../styles/dashboard.css'
+import "../styles/dashboard.css";
 import {
   BarChart,
   Bar,
@@ -20,13 +20,18 @@ export default function DashboardPage() {
 
   /* ---------------- FETCH DATA ---------------- */
   useEffect(() => {
-    fetch("/api/facilitators").then(r => r.json()).then(setFacilitators);
-    fetch("/api/entries").then(r => r.json()).then(setEntries);
+    fetch("/api/facilitators")
+      .then(r => r.json())
+      .then(data => setFacilitators(data));
+
+    fetch("/api/entries")
+      .then(r => r.json())
+      .then(data => setEntries(data));
   }, []);
 
-  /* ---------------- FILTER ---------------- */
+  /* ---------------- FILTER ENTRIES ---------------- */
   const filteredEntries = entries.filter(e => {
-    const sameMonth = e.week_start.startsWith(month);
+    const sameMonth = e.week_start?.startsWith(month);
     const sameFac =
       selectedFacilitator === "ALL" || e.facilitator_id === selectedFacilitator;
     return sameMonth && sameFac;
@@ -36,30 +41,40 @@ export default function DashboardPage() {
   const sessionChartData = facilitators.map(f => {
     const fEntries = filteredEntries.filter(e => e.facilitator_id === f._id);
 
-    const assigned = fEntries
-      .filter(e => e.non_contact_category === "Assigned Contact Hours")
-      .reduce((s, e) => s + Number(e.contact_hours || 0), 0);
+    // Assigned hours from facilitator record (blue)
+    const assigned = Number(f.assignedHours ?? 0);
 
+    // Regular hours from entries (pink)
     const regular = fEntries.reduce(
-      (s, e) => s + Number(e.contact_hours || 0),
+      (sum, e) => sum + Number(e.contact_hours || 0),
       0
     );
 
     return { name: f.name, assigned, regular };
   });
 
-  /* ---------------- NON SESSION ---------------- */
+  /* ---------------- NON SESSION HOURS ---------------- */
   const nonSessionData = facilitators.map(f => {
     const fEntries = filteredEntries.filter(e => e.facilitator_id === f._id);
 
     const nonContact = fEntries.reduce(
-      (s, e) => s + Number(e.non_contact_hours || 0),
+      (sum, e) =>
+        sum +
+        (e.non_contact_activities?.reduce(
+          (s, a) => s + Number(a.hours || 0),
+          0
+        ) || 0),
       0
     );
 
-    const assignedNC = fEntries
-      .filter(e => e.non_contact_category === "Assigned Non Contact Hours")
-      .reduce((s, e) => s + Number(e.non_contact_hours || 0), 0);
+    const assignedNC = fEntries.reduce(
+      (sum, e) =>
+        sum +
+        (e.non_contact_activities
+          ?.filter(a => a.category === "Assigned Non Contact Hours")
+          .reduce((s, a) => s + Number(a.hours || 0), 0) || 0),
+      0
+    );
 
     return {
       name: f.name,
@@ -74,18 +89,32 @@ export default function DashboardPage() {
     filteredEntries
       .filter(e => e.facilitator_id === f._id)
       .forEach(e => {
-        obj[e.non_contact_category] =
-          (obj[e.non_contact_category] || 0) + Number(e.non_contact_hours || 0);
+        e.non_contact_activities?.forEach(a => {
+          obj[a.category] = (obj[a.category] || 0) + Number(a.hours || 0);
+        });
       });
     return obj;
   });
 
-  /* ---------------- TABLE DATA ---------------- */
-  const projects = filteredEntries.filter(
-    e => e.non_contact_category === "Project"
+  /* ---------------- ATTENDED PROJECTS / EVENTS ---------------- */
+  const attendedProjects = filteredEntries.flatMap(e =>
+    e.non_contact_activities
+      ?.filter(a => a.category === "Project")
+      .map(a => ({
+        ...e,
+        non_contact_hours: a.hours,
+        non_contact_category: a.category,
+      })) || []
   );
-  const events = filteredEntries.filter(
-    e => e.non_contact_category === "Event"
+
+  const attendedEvents = filteredEntries.flatMap(e =>
+    e.non_contact_activities
+      ?.filter(a => a.category === "Event")
+      .map(a => ({
+        ...e,
+        non_contact_hours: a.hours,
+        non_contact_category: a.category,
+      })) || []
   );
 
   return (
@@ -100,10 +129,16 @@ export default function DashboardPage() {
           value={month}
           onChange={e => setMonth(e.target.value)}
         />
-        <select onChange={e => setSelectedFacilitator(e.target.value)}>
+
+        <select
+          value={selectedFacilitator}
+          onChange={e => setSelectedFacilitator(e.target.value)}
+        >
           <option value="ALL">Admin – All Facilitators</option>
           {facilitators.map(f => (
-            <option key={f._id} value={f._id}>{f.name}</option>
+            <option key={f._id} value={f._id}>
+              {f.name}
+            </option>
           ))}
         </select>
       </div>
@@ -118,18 +153,18 @@ export default function DashboardPage() {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="assigned" fill="#312e81" />
-              <Bar dataKey="regular" fill="#ec4899" />
+              <Bar dataKey="assigned" fill="#3b82f6" /> {/* blue for assigned */}
+              <Bar dataKey="regular" fill="#ec4899" /> {/* pink for regular */}
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         <div style={styles.card}>
-          <h4>Projects</h4>
-          <ProjectsTable rows={projects} facilitators={facilitators} />
+          <h4>Projects Attended</h4>
+          <ProjectsTable rows={attendedProjects} facilitators={facilitators} />
 
-          <h4 style={{ marginTop: 20 }}>Events</h4>
-          <EventsTable rows={events} facilitators={facilitators} />
+          <h4 style={{ marginTop: 20 }}>Events Attended</h4>
+          <EventsTable rows={attendedEvents} facilitators={facilitators} />
         </div>
       </div>
 
@@ -184,11 +219,18 @@ function ProjectsTable({ rows, facilitators }) {
         </tr>
       </thead>
       <tbody>
+        {rows.length === 0 && (
+          <tr>
+            <td colSpan="3" style={{ textAlign: "center" }}>
+              No projects attended
+            </td>
+          </tr>
+        )}
         {rows.map(r => {
           const f = facilitators.find(x => x._id === r.facilitator_id);
           return (
             <tr key={r._id}>
-              <td>{f?.name}</td>
+              <td>{f?.name || "-"}</td>
               <td>{r.non_contact_hours}</td>
               <td>{r.comments || "-"}</td>
             </tr>
@@ -211,11 +253,18 @@ function EventsTable({ rows, facilitators }) {
         </tr>
       </thead>
       <tbody>
+        {rows.length === 0 && (
+          <tr>
+            <td colSpan="3" style={{ textAlign: "center" }}>
+              No events attended
+            </td>
+          </tr>
+        )}
         {rows.map(r => {
           const f = facilitators.find(x => x._id === r.facilitator_id);
           return (
             <tr key={r._id}>
-              <td>{f?.name}</td>
+              <td>{f?.name || "-"}</td>
               <td>{r.non_contact_hours}</td>
               <td>{r.comments || "-"}</td>
             </tr>
@@ -232,9 +281,5 @@ const styles = {
   filters: { display: "flex", gap: 12, marginBottom: 16 },
   gridTop: { display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 },
   gridBottom: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 },
-  card: {
-    background: "#fff",
-    border: "1px solid #ddd",
-    padding: 12,
-  },
+  card: { background: "#fff", border: "1px solid #ddd", padding: 12 },
 };
